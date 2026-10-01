@@ -1,6 +1,7 @@
+import type React from 'react'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Globe, { type GlobeMethods } from 'react-globe.gl'
-import { countryNameZh } from '../geo'
+import { countryNameZh, findCountry } from '../geo'
 import type { CountryFeature, Place, Selection } from '../types'
 
 const TEXTURES = `${import.meta.env.BASE_URL}textures/`
@@ -20,10 +21,23 @@ interface Props {
   places: Place[]
   selection: Selection
   autoRotate: boolean
+  interactive: boolean
   onCountryClick: (code: string, lat: number, lng: number) => void
   onOceanClick: (lat: number, lng: number) => void
   onPlaceClick: (id: string) => void
   onInteract: () => void
+  onReady: () => void
+}
+
+const TAP_SLOP_PX = 8
+const PIN_HIT_PX = 26
+
+/** Great-circle distance in degrees. */
+function angularDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const r = Math.PI / 180
+  const c =
+    Math.sin(lat1 * r) * Math.sin(lat2 * r) + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.cos((lng1 - lng2) * r)
+  return Math.acos(Math.min(1, Math.max(-1, c))) / r
 }
 
 function escapeHtml(s: string) {
@@ -37,10 +51,12 @@ export default function GlobeView({
   places,
   selection,
   autoRotate,
+  interactive,
   onCountryClick,
   onOceanClick,
   onPlaceClick,
   onInteract,
+  onReady,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -57,19 +73,61 @@ export default function GlobeView({
     return () => ro.disconnect()
   }, [])
 
+  const mounted = size.width > 0
+
   useEffect(() => {
     const controls = globeRef.current?.controls()
     if (!controls) return
     controls.autoRotate = autoRotate
-    controls.autoRotateSpeed = 0.4
-  }, [autoRotate, globeRef, size.width])
+    controls.autoRotateSpeed = 0.35
+    controls.enableDamping = true
+    controls.dampingFactor = 0.08
+    controls.minDistance = 130
+    controls.maxDistance = 600
+  }, [autoRotate, globeRef, mounted])
 
   useEffect(() => {
     const controls = globeRef.current?.controls()
     if (!controls) return
     controls.addEventListener('start', onInteract)
     return () => controls.removeEventListener('start', onInteract)
-  }, [globeRef, onInteract, size.width])
+  }, [globeRef, onInteract, mounted])
+
+  // Taps are resolved here rather than through globe.gl's click events, which use a
+  // throttled hover raycast and can attribute a quick touch tap to a stale position.
+  const down = useRef<{ x: number; y: number; id: number } | null>(null)
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    down.current = e.isPrimary ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const start = down.current
+    down.current = null
+    const globe = globeRef.current
+    const el = wrapRef.current
+    if (!start || !globe || !el || start.id !== e.pointerId) return
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP_PX) return
+
+    const rect = el.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const hit = globe.toGlobeCoords(x, y)
+    if (!hit) return
+
+    let best: { id: string; d: number } | null = null
+    for (const p of places) {
+      if (angularDistance(p.lat, p.lng, hit.lat, hit.lng) > 25) continue // far side of the globe
+      const s = globe.getScreenCoords(p.lat, p.lng, 0.05)
+      const d = Math.hypot(s.x - x, s.y - y)
+      if (d < PIN_HIT_PX && (!best || d < best.d)) best = { id: p.id, d }
+    }
+    if (best) return onPlaceClick(best.id)
+
+    const country = findCountry(hit.lat, hit.lng, countries)
+    if (country) onCountryClick(country.properties.code, hit.lat, hit.lng)
+    else onOceanClick(hit.lat, hit.lng)
+  }
 
   const selectedCountry = selection?.kind === 'country' ? selection.code : null
   const selectedPlace = selection?.kind === 'place' ? selection.id : null
@@ -91,63 +149,65 @@ export default function GlobeView({
   const capColor = (f: CountryFeature) => {
     const code = f.properties.code
     const isVisited = visited.has(code)
-    if (code === selectedCountry) return isVisited ? 'rgba(255, 196, 92, 0.95)' : 'rgba(140, 200, 255, 0.55)'
-    if (code === hovered) return isVisited ? 'rgba(255, 196, 92, 0.9)' : 'rgba(255, 255, 255, 0.28)'
-    return isVisited ? 'rgba(255, 166, 61, 0.72)' : 'rgba(0, 0, 0, 0)'
+    if (code === selectedCountry) return isVisited ? 'rgba(241, 217, 163, 0.75)' : 'rgba(150, 180, 255, 0.28)'
+    if (code === hovered) return isVisited ? 'rgba(241, 217, 163, 0.6)' : 'rgba(255, 255, 255, 0.10)'
+    return isVisited ? 'rgba(216, 184, 120, 0.42)' : 'rgba(0, 0, 0, 0)'
   }
 
   return (
-    <div ref={wrapRef} className="globe-wrap">
-      {size.width > 0 && (
+    <div
+      ref={wrapRef}
+      className={`globe-wrap ${interactive ? '' : 'inert'}`}
+      onPointerDownCapture={onPointerDown}
+      onPointerUpCapture={onPointerUp}
+      onPointerCancelCapture={() => (down.current = null)}
+    >
+      {mounted && (
         <Globe
           ref={globeRef}
           width={size.width}
           height={size.height}
-          globeImageUrl={`${TEXTURES}earth-blue-marble.jpg`}
+          backgroundColor="rgba(0,0,0,0)"
+          globeImageUrl={`${TEXTURES}earth-night.jpg`}
           bumpImageUrl={`${TEXTURES}earth-topology.png`}
-          backgroundImageUrl={`${TEXTURES}night-sky.png`}
-          atmosphereColor="#7ab8ff"
-          atmosphereAltitude={0.18}
+          atmosphereColor="#4b74ff"
+          atmosphereAltitude={0.22}
+          onGlobeReady={onReady}
           polygonsData={countries}
           polygonCapColor={(f) => capColor(f as CountryFeature)}
-          polygonSideColor={() => 'rgba(255, 166, 61, 0.15)'}
-          polygonStrokeColor={() => 'rgba(255, 255, 255, 0.35)'}
+          polygonSideColor={(f) =>
+            visited.has((f as CountryFeature).properties.code) ? 'rgba(216, 184, 120, 0.25)' : 'rgba(0, 0, 0, 0)'
+          }
+          polygonStrokeColor={(f) =>
+            visited.has((f as CountryFeature).properties.code) ? 'rgba(241, 217, 163, 0.9)' : 'rgba(170, 190, 255, 0.16)'
+          }
           polygonAltitude={(f) => {
             const code = (f as CountryFeature).properties.code
-            if (code === selectedCountry || code === hovered) return 0.025
-            return visited.has(code) ? 0.012 : 0.006
+            if (code === selectedCountry) return 0.03
+            if (code === hovered) return 0.018
+            return visited.has(code) ? 0.012 : 0.005
           }}
-          polygonsTransitionDuration={250}
-          polygonLabel={(f) => {
-            const c = f as CountryFeature
-            const tag = visited.has(c.properties.code) ? '<span class="tip-tag">已去过</span>' : ''
-            return `<div class="tip"><b>${escapeHtml(countryNameZh(c))}</b>${tag}</div>`
-          }}
+          polygonsTransitionDuration={300}
+          polygonLabel={(f) => `<div class="tip">${escapeHtml(countryNameZh(f as CountryFeature))}</div>`}
           onPolygonHover={(f) => setHovered(f ? (f as CountryFeature).properties.code : null)}
-          onPolygonClick={(f, _e, { lat, lng }) => onCountryClick((f as CountryFeature).properties.code, lat, lng)}
-          onGlobeClick={({ lat, lng }) => onOceanClick(lat, lng)}
           pointsData={markers}
           pointLat="lat"
           pointLng="lng"
-          pointAltitude={0.04}
-          pointRadius={(m) => ((m as Marker).id === selectedPlace ? 0.55 : 0.4)}
+          pointAltitude={(m) => ((m as Marker).id === selectedPlace ? 0.07 : 0.045)}
+          pointRadius={(m) => ((m as Marker).id === selectedPlace ? 0.42 : 0.3)}
           pointColor={(m) => {
             const mk = m as Marker
-            if (mk.kind === 'pending') return '#7fd1ff'
-            return mk.id === selectedPlace ? '#ffffff' : '#ff4f7b'
+            if (mk.kind === 'pending') return '#9fb8ff'
+            return mk.id === selectedPlace ? '#ffffff' : '#f1d9a3'
           }}
           pointsMerge={false}
-          pointsTransitionDuration={200}
-          pointLabel={(m) => `<div class="tip"><b>${escapeHtml((m as Marker).name)}</b></div>`}
-          onPointClick={(m) => {
-            const mk = m as Marker
-            if (mk.kind === 'place') onPlaceClick(mk.id)
-          }}
+          pointsTransitionDuration={250}
+          pointLabel={(m) => `<div class="tip">${escapeHtml((m as Marker).name)}</div>`}
           ringsData={rings}
-          ringColor={() => (t: number) => `rgba(255, 255, 255, ${1 - t})`}
-          ringMaxRadius={3}
-          ringPropagationSpeed={2.5}
-          ringRepeatPeriod={900}
+          ringColor={() => (t: number) => `rgba(241, 217, 163, ${1 - t})`}
+          ringMaxRadius={3.5}
+          ringPropagationSpeed={2.2}
+          ringRepeatPeriod={1100}
         />
       )}
     </div>

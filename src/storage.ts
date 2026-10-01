@@ -1,3 +1,4 @@
+import { shareTextFile } from './native'
 import type { Place, TravelData } from './types'
 
 const KEY = 'starlingworld:v1'
@@ -44,11 +45,7 @@ export function saveData(data: TravelData): void {
   }
 }
 
-export function exportData(data: TravelData): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `starlingworld-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  URL.revokeObjectURL(a.href)
+export function exportData(data: TravelData): Promise<void> {
+  const name = `starlingworld-${new Date().toISOString().slice(0, 10)}.json`
+  return shareTextFile(name, JSON.stringify(data, null, 2))
 }

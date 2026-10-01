@@ -1,28 +1,65 @@
 # StarlingWorld 🌏
 
-记录你在地球上去过的地方：一个可以旋转、缩放的 3D 地球仪，把走过的国家点亮，把去过的城市和景点钉在地球上。
+在 3D 地球上记录你去过的每一个地方。iOS / Android 手机 App（基于 Capacitor），同一套代码也能作为网页 / PWA 运行。
 
 ## 功能
 
-- **3D 地球仪**：拖动旋转、滚轮/双指缩放，可开关自动旋转
-- **点亮国家**：点击国家 → 标记为「去过」，地球上该国家会变成橙色
-- **记录地点**：点击地球任意位置，或搜索城市/景点（OpenStreetMap），填写名称、日期、备注
-- **自动识别国家**：添加地点时自动判断所属国家，并一起点亮
-- **统计**：去过的国家/地区数、大洲数、地点数、覆盖世界比例
-- **列表**：按时间排列的地点列表；按大洲分组的国家列表，点击即可飞到对应位置
-- **数据**：自动保存在浏览器本地（localStorage），支持导出/导入 JSON 备份
+- **夜景 3D 地球**：城市灯光纹理、大气辉光、星空背景，拖动旋转、双指缩放
+- **点亮国家**：轻触国家 → 点亮，去过的国家以香槟金色浮起
+- **记录地点**：轻触地球任意位置，或搜索城市 / 景点（OpenStreetMap），记下名称、日期和随笔
+- **足迹**：按年份排列的时间线，点一下即飞回地球上的那个位置
+- **我的世界**：探索世界的百分比、大洲进度、已点亮国家一览
+- **备份**：数据只存在本机，可导出 / 恢复 JSON 备份（手机上通过系统分享面板）
+- 触感反馈、刘海屏安全区、竖屏锁定、自定义图标与启动页
 
 ## 开发
 
 ```bash
 npm install
-npm run dev      # 本地开发
-npm run build    # 生产构建
-npm run lint     # 代码检查
+npm run dev        # 在浏览器里开发（用手机尺寸预览效果最好）
+npm run lint
+npm run build
 ```
 
-## 技术栈
+## 在手机上运行
 
-React 19 · TypeScript · Vite · [react-globe.gl](https://github.com/vasturiano/react-globe.gl)（three.js）
+**Android**（需要 [Android Studio](https://developer.android.com/studio)）：
 
-地球纹理来自 [three-globe](https://github.com/vasturiano/three-globe) 示例，国家边界来自 [Natural Earth](https://www.naturalearthdata.com/)（1:110m）。
+```bash
+npm run android    # 构建 → 同步 → 用 Android Studio 打开，点 ▶ 运行到手机或模拟器
+```
+
+或者不装任何东西：每次推送到 `main`，GitHub Actions 会自动构建一个调试版 APK，
+在仓库的 **Actions → Android APK → Artifacts** 里下载，传到安卓手机上安装即可。
+
+**iOS**（需要 Mac + [Xcode](https://developer.apple.com/xcode/)）：
+
+```bash
+npm run ios        # 构建 → 同步 → 用 Xcode 打开，选择你的 iPhone 点 ▶ 运行
+```
+
+首次在真机运行需要在 Xcode 的 *Signing & Capabilities* 里选择你的 Apple ID 团队。
+
+修改网页代码后，执行 `npm run cap:sync` 把最新代码同步进原生工程。
+
+## 项目结构
+
+```
+src/
+  App.tsx              应用外壳：标签页、底部弹层、状态
+  components/
+    GlobeView.tsx      3D 地球（react-globe.gl / three.js）与触摸点选
+    sheets.tsx         底部弹层：搜索、添加地点、国家、地点详情
+    screens.tsx        「足迹」时间线与「我的世界」统计页
+    Sheet.tsx          可下滑关闭的底部弹层
+  geo.ts               国家数据、点在多边形内判断、地点搜索
+  storage.ts           本地存储与备份
+  native.ts            触感、状态栏、分享等原生能力
+android/ ios/          Capacitor 原生工程
+assets/                图标与启动页源文件（npx @capacitor/assets generate）
+```
+
+## 鸣谢
+
+地球纹理来自 [three-globe](https://github.com/vasturiano/three-globe) 示例，国家边界来自 [Natural Earth](https://www.naturalearthdata.com/)（1:110m），
+地点搜索由 [OpenStreetMap Nominatim](https://nominatim.org/) 提供。
