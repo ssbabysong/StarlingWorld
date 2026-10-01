@@ -12,6 +12,19 @@ interface Marker {
   lat: number
   lng: number
   kind: 'place' | 'pending'
+  selected: boolean
+}
+
+const LABEL_ALTITUDE = 1.75
+
+function markerElement(m: Marker): HTMLElement {
+  const el = document.createElement('div')
+  el.className = `mk ${m.kind === 'pending' ? 'pending' : ''} ${m.selected ? 'sel' : ''}`
+  const label = document.createElement('span')
+  label.className = 'mk-label'
+  label.textContent = m.name
+  el.appendChild(label)
+  return el
 }
 
 interface Props {
@@ -61,6 +74,7 @@ export default function GlobeView({
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [hovered, setHovered] = useState<string | null>(null)
+  const [near, setNear] = useState(false)
 
   useEffect(() => {
     const el = wrapRef.current
@@ -118,7 +132,7 @@ export default function GlobeView({
     let best: { id: string; d: number } | null = null
     for (const p of places) {
       if (angularDistance(p.lat, p.lng, hit.lat, hit.lng) > 25) continue // far side of the globe
-      const s = globe.getScreenCoords(p.lat, p.lng, 0.05)
+      const s = globe.getScreenCoords(p.lat, p.lng, 0.008)
       const d = Math.hypot(s.x - x, s.y - y)
       if (d < PIN_HIT_PX && (!best || d < best.d)) best = { id: p.id, d }
     }
@@ -133,12 +147,34 @@ export default function GlobeView({
   const selectedPlace = selection?.kind === 'place' ? selection.id : null
 
   const markers = useMemo<Marker[]>(() => {
-    const list: Marker[] = places.map((p) => ({ ...p, kind: 'place' }))
+    const list: Marker[] = places.map((p) => ({ ...p, kind: 'place', selected: p.id === selectedPlace }))
     if (selection?.kind === 'new') {
-      list.push({ id: '__new', name: selection.name || '新地点', lat: selection.lat, lng: selection.lng, kind: 'pending' })
+      list.push({
+        id: '__new',
+        name: selection.name || '新地点',
+        lat: selection.lat,
+        lng: selection.lng,
+        kind: 'pending',
+        selected: true,
+      })
     }
     return list
-  }, [places, selection])
+  }, [places, selection, selectedPlace])
+
+  // Journey: connect places in the order they were visited.
+  const arcs = useMemo(() => {
+    const sorted = [...places].sort(
+      (a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.createdAt - b.createdAt,
+    )
+    const out: { startLat: number; startLng: number; endLat: number; endLng: number }[] = []
+    for (let i = 1; i < sorted.length; i++) {
+      const a = sorted[i - 1]
+      const b = sorted[i]
+      if (angularDistance(a.lat, a.lng, b.lat, b.lng) < 0.5) continue
+      out.push({ startLat: a.lat, startLng: a.lng, endLat: b.lat, endLng: b.lng })
+    }
+    return out
+  }, [places])
 
   const rings = useMemo(() => {
     if (selection?.kind === 'new') return [{ lat: selection.lat, lng: selection.lng }]
@@ -149,15 +185,15 @@ export default function GlobeView({
   const capColor = (f: CountryFeature) => {
     const code = f.properties.code
     const isVisited = visited.has(code)
-    if (code === selectedCountry) return isVisited ? 'rgba(241, 217, 163, 0.75)' : 'rgba(150, 180, 255, 0.28)'
-    if (code === hovered) return isVisited ? 'rgba(241, 217, 163, 0.6)' : 'rgba(255, 255, 255, 0.10)'
-    return isVisited ? 'rgba(216, 184, 120, 0.42)' : 'rgba(0, 0, 0, 0)'
+    if (code === selectedCountry) return isVisited ? 'rgba(255, 200, 120, 0.30)' : 'rgba(255, 255, 255, 0.10)'
+    if (code === hovered) return isVisited ? 'rgba(255, 200, 120, 0.24)' : 'rgba(255, 255, 255, 0.05)'
+    return isVisited ? 'rgba(255, 190, 105, 0.14)' : 'rgba(0, 0, 0, 0)'
   }
 
   return (
     <div
       ref={wrapRef}
-      className={`globe-wrap ${interactive ? '' : 'inert'}`}
+      className={`globe-wrap ${interactive ? '' : 'inert'} ${near ? 'near' : ''}`}
       onPointerDownCapture={onPointerDown}
       onPointerUpCapture={onPointerUp}
       onPointerCancelCapture={() => (down.current = null)}
@@ -170,44 +206,42 @@ export default function GlobeView({
           backgroundColor="rgba(0,0,0,0)"
           globeImageUrl={`${TEXTURES}earth-night.jpg`}
           bumpImageUrl={`${TEXTURES}earth-topology.png`}
-          atmosphereColor="#4b74ff"
-          atmosphereAltitude={0.22}
+          atmosphereColor="#7d9bff"
+          atmosphereAltitude={0.16}
           onGlobeReady={onReady}
+          onZoom={({ altitude }) => setNear(altitude < LABEL_ALTITUDE)}
           polygonsData={countries}
           polygonCapColor={(f) => capColor(f as CountryFeature)}
-          polygonSideColor={(f) =>
-            visited.has((f as CountryFeature).properties.code) ? 'rgba(216, 184, 120, 0.25)' : 'rgba(0, 0, 0, 0)'
-          }
-          polygonStrokeColor={(f) =>
-            visited.has((f as CountryFeature).properties.code) ? 'rgba(241, 217, 163, 0.9)' : 'rgba(170, 190, 255, 0.16)'
-          }
-          polygonAltitude={(f) => {
+          polygonSideColor={() => 'rgba(0, 0, 0, 0)'}
+          polygonStrokeColor={(f) => {
             const code = (f as CountryFeature).properties.code
-            if (code === selectedCountry) return 0.03
-            if (code === hovered) return 0.018
-            return visited.has(code) ? 0.012 : 0.005
+            if (code === selectedCountry) return 'rgba(255, 236, 205, 0.95)'
+            return visited.has(code) ? 'rgba(255, 205, 135, 0.7)' : 'rgba(190, 205, 255, 0.10)'
           }}
+          polygonAltitude={(f) => ((f as CountryFeature).properties.code === selectedCountry ? 0.012 : 0.004)}
           polygonsTransitionDuration={300}
           polygonLabel={(f) => `<div class="tip">${escapeHtml(countryNameZh(f as CountryFeature))}</div>`}
           onPolygonHover={(f) => setHovered(f ? (f as CountryFeature).properties.code : null)}
-          pointsData={markers}
-          pointLat="lat"
-          pointLng="lng"
-          pointAltitude={(m) => ((m as Marker).id === selectedPlace ? 0.07 : 0.045)}
-          pointRadius={(m) => ((m as Marker).id === selectedPlace ? 0.42 : 0.3)}
-          pointColor={(m) => {
-            const mk = m as Marker
-            if (mk.kind === 'pending') return '#9fb8ff'
-            return mk.id === selectedPlace ? '#ffffff' : '#f1d9a3'
-          }}
-          pointsMerge={false}
-          pointsTransitionDuration={250}
-          pointLabel={(m) => `<div class="tip">${escapeHtml((m as Marker).name)}</div>`}
+          htmlElementsData={markers}
+          htmlLat="lat"
+          htmlLng="lng"
+          htmlAltitude={0.008}
+          htmlElement={(m) => markerElement(m as Marker)}
+          htmlElementVisibilityModifier={(el, visible) => el.classList.toggle('hidden', !visible)}
+          htmlTransitionDuration={0}
+          arcsData={arcs}
+          arcColor={() => ['rgba(255, 196, 110, 0.05)', 'rgba(255, 214, 160, 0.85)']}
+          arcStroke={0.35}
+          arcAltitudeAutoScale={0.16}
+          arcDashLength={0.35}
+          arcDashGap={0.15}
+          arcDashAnimateTime={3800}
+          arcsTransitionDuration={0}
           ringsData={rings}
-          ringColor={() => (t: number) => `rgba(241, 217, 163, ${1 - t})`}
-          ringMaxRadius={3.5}
-          ringPropagationSpeed={2.2}
-          ringRepeatPeriod={1100}
+          ringColor={() => (t: number) => `rgba(255, 214, 160, ${0.9 * (1 - t)})`}
+          ringMaxRadius={2.6}
+          ringPropagationSpeed={1.6}
+          ringRepeatPeriod={1400}
         />
       )}
     </div>

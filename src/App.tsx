@@ -90,7 +90,7 @@ export default function App() {
     }))
     if (on) {
       success()
-      setToast(`已点亮 ${countryName(code)}`)
+      setToast(`已将${countryName(code)}标记为去过`)
     } else tap()
   }
 
@@ -108,7 +108,7 @@ export default function App() {
     setData((d) => ({ ...d, places: [...d.places, place] }))
     setSelection({ kind: 'place', id: place.id })
     success()
-    setToast('足迹已保存')
+    setToast('已保存')
   }
 
   const updatePlace = (id: string, draft: PlaceDraft) =>
@@ -249,53 +249,39 @@ export default function App() {
 
       {!ready && (
         <div className="splash">
-          <div className="splash-orb" />
-          <p>STARLING WORLD</p>
+          <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" width={72} height={72} />
         </div>
       )}
 
       {tab === 'globe' && (
         <>
           <header className="top">
-            <div className="brand">
-              <span>Starling</span> World
-            </div>
-            <div className="top-stats">
-              <div>
-                <span className="num">{visited.size}</span>
-                <small>国家与地区</small>
-              </div>
-              <i />
-              <div>
-                <span className="num">{continentsVisited}</span>
-                <small>大洲</small>
-              </div>
-              <i />
-              <div>
-                <span className="num">{data.places.length}</span>
-                <small>地点</small>
-              </div>
-            </div>
+            <h1>我的地球</h1>
+            <p className="summary">
+              <b>{visited.size}</b> 个国家和地区<i />
+              <b>{data.places.length}</b> 个地点<i />
+              <b>{continentsVisited}</b> 个大洲
+            </p>
           </header>
 
           <button
-            className="glass-btn rotate"
+            className="round-btn rotate"
             onClick={() => setAutoRotate((v) => !v)}
             aria-label={autoRotate ? '停止旋转' : '自动旋转'}
           >
-            <Icon name={autoRotate ? 'pause' : 'rotate'} size={18} />
+            <Icon name={autoRotate ? 'pause' : 'rotate'} size={17} />
           </button>
 
           {!selection && !searching && (
             <button
-              className="fab"
+              className="search-pill"
               onClick={() => {
-                tap('medium')
+                tap()
                 setSearching(true)
               }}
-              aria-label="记录新地点"
             >
-              <Icon name="plus" size={26} />
+              <Icon name="search" size={17} />
+              <span>搜索城市，添加足迹</span>
             </button>
           )}
         </>

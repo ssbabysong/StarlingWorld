@@ -1,7 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { formatCoords, formatDate } from '../format'
 import { continentZh, countryNameZh, searchPlaces, type SearchResult } from '../geo'
 import type { CountryFeature, Place } from '../types'
-import { formatCoords, formatDate } from '../format'
 import Icon from './Icon'
 import Sheet from './Sheet'
 
@@ -11,6 +11,17 @@ export interface PlaceDraft {
   note: string
 }
 
+function SheetHeader({ title, sub, tag }: { title: string; sub?: ReactNode; tag?: string }) {
+  return (
+    <header className="sheet-head">
+      <h2>
+        {title}
+        {tag && <span className="tag">{tag}</span>}
+      </h2>
+      {sub && <p>{sub}</p>}
+    </header>
+  )
+}
 
 /* ------------------------------------------------------------------ form */
 
@@ -37,25 +48,27 @@ function PlaceForm({
 
   return (
     <form className="form" onSubmit={submit}>
-      <label className="field">
-        <span>名称</span>
-        <input value={draft.name} onChange={set('name')} placeholder="例如：京都 · 清水寺" required />
-      </label>
-      <label className="field">
-        <span>到访日期</span>
-        <input type="date" value={draft.date} onChange={set('date')} />
-      </label>
-      <label className="field">
-        <span>随笔</span>
-        <textarea value={draft.note} onChange={set('note')} rows={3} placeholder="和谁一起、印象最深的瞬间……" />
-      </label>
+      <div className="group">
+        <label className="field">
+          <span>名称</span>
+          <input value={draft.name} onChange={set('name')} placeholder="例如 京都" required />
+        </label>
+        <label className="field">
+          <span>日期</span>
+          <input type="date" value={draft.date} onChange={set('date')} />
+        </label>
+        <label className="field top">
+          <span>备注</span>
+          <textarea value={draft.note} onChange={set('note')} rows={3} placeholder="写点什么（可选）" />
+        </label>
+      </div>
       <div className="actions">
         {onCancel && (
-          <button type="button" className="btn ghost" onClick={onCancel}>
+          <button type="button" className="btn secondary" onClick={onCancel}>
             取消
           </button>
         )}
-        <button type="submit" className="btn gold" disabled={!draft.name.trim()}>
+        <button type="submit" className="btn primary" disabled={!draft.name.trim()}>
           {submitLabel}
         </button>
       </div>
@@ -89,54 +102,42 @@ export function SearchSheet({ onPick, onClose }: { onPick: (r: SearchResult) => 
 
   return (
     <Sheet modal tall onClose={onClose}>
-      <p className="eyebrow">New Footprint</p>
-      <h2 className="sheet-title">记录新地点</h2>
+      <SheetHeader title="添加地点" />
       <form className="search" onSubmit={submit}>
-        <Icon name="search" size={18} />
+        <Icon name="search" size={17} />
         <input
           type="search"
           enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索城市、景点、街道"
+          placeholder="城市、景点或地址"
           autoFocus
         />
         {status === 'loading' && <span className="spinner" />}
       </form>
 
-      {status === 'error' && <p className="muted center">搜索失败，请检查网络后重试</p>}
-
-      {results && results.length === 0 && <p className="muted center">没有找到相关地点</p>}
+      {status === 'error' && <p className="hint">搜索失败，请检查网络后重试</p>}
+      {results && results.length === 0 && <p className="hint">没有找到相关地点</p>}
 
       {results && results.length > 0 && (
-        <ul className="rows">
+        <ul className="list">
           {results.map((r, i) => (
             <li key={i}>
-              <button className="row" onClick={() => onPick(r)}>
-                <span className="row-icon">
-                  <Icon name="pin" size={18} />
+              <button className="list-row" onClick={() => onPick(r)}>
+                <span className="list-icon">
+                  <Icon name="pin" size={16} />
                 </span>
-                <span className="row-text">
+                <span className="list-text">
                   <b>{r.name}</b>
                   <small>{r.fullName}</small>
                 </span>
-                <Icon name="chevron" size={16} />
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {!results && (
-        <div className="tip-card">
-          <Icon name="globe" size={22} />
-          <p>
-            也可以关闭此页，直接在地球上<b>轻触任意位置</b>来记录地点；
-            <br />
-            轻触国家可将其<b>点亮</b>。
-          </p>
-        </div>
-      )}
+      {!results && status !== 'error' && <p className="hint">也可以直接在地球上轻点任意位置添加。</p>}
     </Sheet>
   )
 }
@@ -160,12 +161,11 @@ export function AddPlaceSheet({
 }) {
   return (
     <Sheet modal onClose={onClose}>
-      <p className="eyebrow">{formatCoords(lat, lng)}</p>
-      <h2 className="sheet-title">{countryName}</h2>
+      <SheetHeader title={countryName} sub={formatCoords(lat, lng)} />
       <PlaceForm
         key={`${lat},${lng}`}
         initial={{ name: name ?? '', date: new Date().toISOString().slice(0, 10), note: '' }}
-        submitLabel="保存足迹"
+        submitLabel="保存"
         onSubmit={onSave}
       />
     </Sheet>
@@ -196,40 +196,36 @@ export function CountrySheet({
   const lockedByPlaces = isVisited && !markedDirectly
   return (
     <Sheet onClose={onClose}>
-      <p className="eyebrow">
-        {continentZh(country.properties.continent)} · {country.properties.name}
-      </p>
-      <h2 className="sheet-title">
-        {countryNameZh(country)}
-        {isVisited && <span className="badge">已点亮</span>}
-      </h2>
+      <SheetHeader
+        title={countryNameZh(country)}
+        tag={isVisited ? '去过' : undefined}
+        sub={`${continentZh(country.properties.continent)} · ${country.properties.name}`}
+      />
 
       <div className="actions">
         {!lockedByPlaces && (
-          <button className={`btn ${isVisited ? 'ghost' : 'gold'}`} onClick={onToggle}>
-            <Icon name={isVisited ? 'close' : 'check'} size={18} />
-            {isVisited ? '取消点亮' : '点亮这个国家'}
+          <button className={`btn ${isVisited ? 'secondary' : 'primary'}`} onClick={onToggle}>
+            {isVisited ? '取消标记' : '标记为去过'}
           </button>
         )}
-        <button className="btn ghost" onClick={onAddHere}>
-          <Icon name="pin" size={18} />
-          在此记录地点
+        <button className="btn secondary" onClick={onAddHere}>
+          添加地点
         </button>
       </div>
 
       {places.length > 0 && (
         <>
-          <p className="section-label">在这里的足迹 · {places.length}</p>
-          <ul className="rows">
+          <p className="group-label">{places.length} 个地点</p>
+          <ul className="list group">
             {places.map((p) => (
               <li key={p.id}>
-                <button className="row" onClick={() => onOpenPlace(p)}>
-                  <span className="row-dot" />
-                  <span className="row-text">
+                <button className="list-row" onClick={() => onOpenPlace(p)}>
+                  <span className="dot" />
+                  <span className="list-text">
                     <b>{p.name}</b>
-                    <small>{formatDate(p.date) || '未填写日期'}</small>
                   </span>
-                  <Icon name="chevron" size={16} />
+                  <small className="list-meta">{p.date ? formatDate(p.date) : ''}</small>
+                  <Icon name="chevron" size={14} />
                 </button>
               </li>
             ))}
@@ -260,16 +256,15 @@ export function PlaceSheet({
 
   return (
     <Sheet onClose={onClose} modal={editing}>
-      <p className="eyebrow">
-        {countryName}
-        {place.date && ` · ${formatDate(place.date)}`}
-      </p>
-      <h2 className="sheet-title">{place.name}</h2>
+      <SheetHeader
+        title={editing ? '编辑地点' : place.name}
+        sub={[countryName, place.date && formatDate(place.date)].filter(Boolean).join(' · ')}
+      />
 
       {editing ? (
         <PlaceForm
           initial={{ name: place.name, date: place.date ?? '', note: place.note ?? '' }}
-          submitLabel="保存修改"
+          submitLabel="保存"
           onSubmit={(d) => {
             onUpdate(d)
             setEditing(false)
@@ -278,19 +273,16 @@ export function PlaceSheet({
         />
       ) : (
         <>
-          {place.note && <blockquote className="note">{place.note}</blockquote>}
-          <p className="coords">{formatCoords(place.lat, place.lng)}</p>
+          {place.note && <p className="note">{place.note}</p>}
           <div className="actions">
-            <button className="btn ghost" onClick={() => setEditing(true)}>
-              <Icon name="edit" size={18} />
+            <button className="btn secondary" onClick={() => setEditing(true)}>
               编辑
             </button>
             <button
-              className={`btn ${confirming ? 'danger-solid' : 'ghost danger'}`}
+              className={`btn ${confirming ? 'danger' : 'secondary danger-text'}`}
               onClick={() => (confirming ? onDelete() : setConfirming(true))}
               onBlur={() => setConfirming(false)}
             >
-              <Icon name="trash" size={18} />
               {confirming ? '确认删除' : '删除'}
             </button>
           </div>

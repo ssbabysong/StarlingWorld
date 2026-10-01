@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { formatMonthDay } from '../format'
 import { continentZh, countryNameZh } from '../geo'
 import { parseData } from '../storage'
 import type { CountryFeature, Place, TravelData } from '../types'
 import Icon from './Icon'
-import { formatDate } from '../format'
 
 const CONTINENT_ORDER = ['Asia', 'Europe', 'Africa', 'North America', 'South America', 'Oceania', 'Antarctica']
 
@@ -30,41 +30,47 @@ export function JournalScreen({
     return [...groups.entries()]
   }, [places])
 
+  const countryCount = new Set(places.map((p) => p.countryCode).filter(Boolean)).size
+
   return (
     <div className="screen">
       <header className="screen-head">
-        <p className="eyebrow">Journal</p>
         <h1>足迹</h1>
-        <p className="muted">{places.length > 0 ? `共 ${places.length} 个地点` : '每一处都值得被记住'}</p>
+        {places.length > 0 && (
+          <p>
+            {places.length} 个地点，{countryCount} 个国家和地区
+          </p>
+        )}
       </header>
 
       {places.length === 0 ? (
         <div className="empty">
-          <div className="empty-orb" />
-          <p>还没有记录任何地点</p>
-          <small>回到地球，轻触你去过的地方</small>
+          <Icon name="pin" size={28} />
+          <p>还没有地点</p>
+          <small>在地球上轻点，或用搜索添加你去过的地方</small>
         </div>
       ) : (
         years.map(([year, list]) => (
           <section key={year} className="year">
-            <h2 className="year-title">
+            <h2 className="group-label">
               {year}
-              <span>{list.length} 处</span>
+              <span>{list.length}</span>
             </h2>
-            <ol className="timeline">
+            <ul className="list group">
               {list.map((p) => (
                 <li key={p.id}>
-                  <button onClick={() => onOpen(p)}>
-                    <span className="tl-date">{p.date ? formatDate(p.date).replace(/^\d+年/, '') : '—'}</span>
-                    <span className="tl-body">
+                  <button className="list-row journal-row" onClick={() => onOpen(p)}>
+                    <span className="journal-date">{formatMonthDay(p.date) || '—'}</span>
+                    <span className="list-text">
                       <b>{p.name}</b>
                       <small>{countryName(p.countryCode)}</small>
                       {p.note && <em>{p.note}</em>}
                     </span>
+                    <Icon name="chevron" size={14} />
                   </button>
                 </li>
               ))}
-            </ol>
+            </ul>
           </section>
         ))
       )}
@@ -73,30 +79,6 @@ export function JournalScreen({
 }
 
 /* ----------------------------------------------------------------- stats */
-
-function Ring({ value }: { value: number }) {
-  const r = 54
-  const c = 2 * Math.PI * r
-  return (
-    <svg className="ring" viewBox="0 0 120 120" aria-hidden="true">
-      <defs>
-        <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f6e2b3" />
-          <stop offset="1" stopColor="#b8914f" />
-        </linearGradient>
-      </defs>
-      <circle cx="60" cy="60" r={r} className="ring-track" />
-      <circle
-        cx="60"
-        cy="60"
-        r={r}
-        className="ring-value"
-        stroke="url(#gold)"
-        strokeDasharray={`${(value / 100) * c} ${c}`}
-      />
-    </svg>
-  )
-}
 
 export function StatsScreen({
   data,
@@ -147,27 +129,27 @@ export function StatsScreen({
   return (
     <div className="screen">
       <header className="screen-head">
-        <p className="eyebrow">Atlas</p>
-        <h1>我的世界</h1>
+        <h1>世界</h1>
       </header>
 
-      <section className="hero">
-        <div className="hero-ring">
-          <Ring value={percent} />
-          <div className="hero-ring-text">
-            <span className="num">{percent < 10 ? percent.toFixed(1) : Math.round(percent)}</span>
-            <small>% 的世界</small>
-          </div>
+      <section className="card hero">
+        <p className="hero-label">已探索的国家和地区</p>
+        <p className="hero-value">
+          <span className="num">{percent < 10 ? percent.toFixed(1) : Math.round(percent)}</span>
+          <span className="unit">%</span>
+        </p>
+        <div className="meter">
+          <i style={{ width: `${Math.max(percent, percent > 0 ? 1.5 : 0)}%` }} />
         </div>
         <div className="hero-stats">
           <div>
             <span className="num">{visited.size}</span>
-            <small>国家与地区</small>
+            <small>国家和地区</small>
           </div>
           <div>
             <span className="num">
               {continentsVisited}
-              <i>/7</i>
+              <span className="of">/7</span>
             </span>
             <small>大洲</small>
           </div>
@@ -178,88 +160,87 @@ export function StatsScreen({
         </div>
       </section>
 
-      <section className="panel">
-        <p className="section-label">大洲</p>
+      <p className="group-label">各大洲</p>
+      <ul className="list group">
         {byContinent.map((c) => (
-          <div key={c.key} className="bar-row">
-            <span>{c.name}</span>
-            <div className="bar">
+          <li key={c.key} className="continent-row">
+            <span className="continent-name">{c.name}</span>
+            <div className="meter thin">
               <i style={{ width: `${c.total ? (c.seen.length / c.total) * 100 : 0}%` }} />
             </div>
-            <small>
-              {c.seen.length}/{c.total}
-            </small>
-          </div>
+            <span className="continent-count">
+              {c.seen.length}
+              <span className="of"> / {c.total}</span>
+            </span>
+          </li>
         ))}
-      </section>
+      </ul>
 
       {visited.size > 0 && (
-        <section className="panel">
-          <p className="section-label">已点亮</p>
-          {byContinent
-            .filter((c) => c.seen.length > 0)
-            .map((c) => (
-              <div key={c.key} className="chip-group">
-                <h3>{c.name}</h3>
-                <div className="chips">
-                  {c.seen.map((country) => (
-                    <button key={country.properties.code} className="chip" onClick={() => onOpenCountry(country)}>
-                      {countryNameZh(country)}
-                    </button>
-                  ))}
+        <>
+          <p className="group-label">去过的国家和地区</p>
+          <div className="card">
+            {byContinent
+              .filter((c) => c.seen.length > 0)
+              .map((c) => (
+                <div key={c.key} className="chip-group">
+                  <h3>{c.name}</h3>
+                  <div className="chips">
+                    {c.seen.map((country) => (
+                      <button key={country.properties.code} className="chip" onClick={() => onOpenCountry(country)}>
+                        {countryNameZh(country)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-        </section>
+              ))}
+          </div>
+        </>
       )}
 
-      <section className="panel">
-        <p className="section-label">数据</p>
-        <button className="row" onClick={onExport}>
-          <span className="row-icon">
-            <Icon name="share" size={18} />
-          </span>
-          <span className="row-text">
-            <b>导出备份</b>
-            <small>保存为 JSON 文件</small>
-          </span>
-          <Icon name="chevron" size={16} />
-        </button>
-        <button className="row" onClick={() => fileRef.current?.click()}>
-          <span className="row-icon">
-            <Icon name="import" size={18} />
-          </span>
-          <span className="row-text">
-            <b>从备份恢复</b>
-            <small>会替换当前设备上的数据</small>
-          </span>
-          <Icon name="chevron" size={16} />
-        </button>
-        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={pickFile} />
-        {importError && <p className="error-text">文件格式不正确，请选择 StarlingWorld 导出的备份</p>}
-        {pending && (
-          <div className="confirm">
-            <p>
-              备份包含 <b>{pending.places.length}</b> 个地点、<b>{pending.countries.length}</b> 个国家。确认替换当前数据？
-            </p>
-            <div className="actions">
-              <button className="btn ghost" onClick={() => setPending(null)}>
-                取消
-              </button>
-              <button
-                className="btn gold"
-                onClick={() => {
-                  onImport(pending)
-                  setPending(null)
-                }}
-              >
-                确认恢复
-              </button>
-            </div>
+      <p className="group-label">数据</p>
+      <ul className="list group">
+        <li>
+          <button className="list-row" onClick={onExport}>
+            <span className="list-text">
+              <b>导出备份</b>
+            </span>
+            <Icon name="chevron" size={14} />
+          </button>
+        </li>
+        <li>
+          <button className="list-row" onClick={() => fileRef.current?.click()}>
+            <span className="list-text">
+              <b>从备份恢复</b>
+            </span>
+            <Icon name="chevron" size={14} />
+          </button>
+        </li>
+      </ul>
+      <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={pickFile} />
+      {importError && <p className="hint error">文件格式不正确，请选择从 StarlingWorld 导出的备份</p>}
+      {pending && (
+        <div className="card confirm">
+          <p>
+            备份中有 {pending.places.length} 个地点和 {pending.countries.length} 个国家，恢复后会替换当前数据。
+          </p>
+          <div className="actions">
+            <button className="btn secondary" onClick={() => setPending(null)}>
+              取消
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                onImport(pending)
+                setPending(null)
+              }}
+            >
+              恢复
+            </button>
           </div>
-        )}
-        <p className="footnote">所有数据仅保存在本设备上</p>
-      </section>
+        </div>
+      )}
+      <p className="hint center">数据只保存在这台设备上</p>
     </div>
   )
 }
