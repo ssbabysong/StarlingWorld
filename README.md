@@ -1,32 +1,28 @@
-# StarlingWorld
+# StarlingWorld 🌏
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+记录你在地球上去过的地方：一个可以旋转、缩放的 3D 地球仪，把走过的国家点亮，把去过的城市和景点钉在地球上。
 
-Currently, two official plugins are available:
+## 功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **3D 地球仪**：拖动旋转、滚轮/双指缩放，可开关自动旋转
+- **点亮国家**：点击国家 → 标记为「去过」，地球上该国家会变成橙色
+- **记录地点**：点击地球任意位置，或搜索城市/景点（OpenStreetMap），填写名称、日期、备注
+- **自动识别国家**：添加地点时自动判断所属国家，并一起点亮
+- **统计**：去过的国家/地区数、大洲数、地点数、覆盖世界比例
+- **列表**：按时间排列的地点列表；按大洲分组的国家列表，点击即可飞到对应位置
+- **数据**：自动保存在浏览器本地（localStorage），支持导出/导入 JSON 备份
 
-## React Compiler
+## 开发
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # 本地开发
+npm run build    # 生产构建
+npm run lint     # 代码检查
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 技术栈
+
+React 19 · TypeScript · Vite · [react-globe.gl](https://github.com/vasturiano/react-globe.gl)（three.js）
+
+地球纹理来自 [three-globe](https://github.com/vasturiano/three-globe) 示例，国家边界来自 [Natural Earth](https://www.naturalearthdata.com/)（1:110m）。
