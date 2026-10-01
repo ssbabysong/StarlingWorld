@@ -1,33 +1,42 @@
 :root {
-  --bg: #050608;
-  --surface: rgba(20, 21, 25, 0.97);
-  --surface-2: #1d1e23;
-  --surface-3: #26272d;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-2: rgba(255, 255, 255, 0.12);
-  --text: #f5f5f7;
-  --text-2: rgba(235, 235, 245, 0.62);
-  --text-3: rgba(235, 235, 245, 0.36);
-  --amber: #ffc56e;
-  --amber-soft: rgba(255, 197, 110, 0.14);
-  --danger: #ff6961;
+  /* night (globe) */
+  --night: #05060a;
+  --cream: #f1e7d3;
+  --cream-2: rgba(241, 231, 211, 0.62);
+  --cream-3: rgba(241, 231, 211, 0.38);
+  --glow: #ffc56e;
 
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC',
-    'Noto Sans CJK SC', 'Source Han Sans SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  /* paper (everything you read and write on) */
+  --paper: #f3ecdd;
+  --paper-2: #e9dfca;
+  --paper-3: #dfd3ba;
+  --rule: rgba(80, 62, 42, 0.14);
+  --ink: #2a241f;
+  --ink-2: #6b5e51;
+  --ink-3: #9e8f7e;
+  --vermilion: #b8432f;
+
+  --font: 'LXGW WenKai Lite', 'Kaiti SC', 'STKaiti', 'KaiTi', -apple-system, 'PingFang SC', 'Noto Sans SC', serif;
+
+  /* aliases used by shared rules */
+  --bg: var(--night);
+  --text: var(--ink);
+  --danger: var(--vermilion);
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tabbar-h: calc(56px + var(--safe-bottom));
+  --capsule-h: 58px;
+  --capsule-gap: calc(var(--safe-bottom) + 14px);
+  --chrome-h: calc(var(--capsule-h) + var(--capsule-gap));
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
 
-  font: 400 15px/1.5 var(--font);
-  color: var(--text);
+  font: 400 16px/1.55 var(--font);
+  color: var(--cream);
   background: var(--bg);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
-  font-feature-settings: 'tnum' 0;
 }
 
 * {

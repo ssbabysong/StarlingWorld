@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GlobeMethods } from 'react-globe.gl'
 import GlobeView from './components/GlobeView'
 import Icon, { type IconName } from './components/Icon'
-import { JournalScreen, StatsScreen } from './components/screens'
+import { JournalScreen, PassportScreen } from './components/screens'
 import { AddPlaceSheet, CountrySheet, PlaceSheet, SearchSheet, type PlaceDraft } from './components/sheets'
 import { continentZh, countryNameZh, findCountry, loadCountries } from './geo'
 import { setupNativeChrome, success, tap } from './native'
@@ -14,8 +14,8 @@ type Tab = 'globe' | 'journal' | 'stats'
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'globe', label: '地球', icon: 'globe' },
-  { id: 'journal', label: '足迹', icon: 'journal' },
-  { id: 'stats', label: '世界', icon: 'stats' },
+  { id: 'journal', label: '手账', icon: 'journal' },
+  { id: 'stats', label: '护照', icon: 'passport' },
 ]
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
@@ -90,7 +90,7 @@ export default function App() {
     }))
     if (on) {
       success()
-      setToast(`已将${countryName(code)}标记为去过`)
+      setToast(`已盖章 · ${countryName(code)}`)
     } else tap()
   }
 
@@ -108,7 +108,7 @@ export default function App() {
     setData((d) => ({ ...d, places: [...d.places, place] }))
     setSelection({ kind: 'place', id: place.id })
     success()
-    setToast('已保存')
+    setToast('已写进手账')
   }
 
   const updatePlace = (id: string, draft: PlaceDraft) =>
@@ -258,9 +258,7 @@ export default function App() {
           <header className="top">
             <h1>我的地球</h1>
             <p className="summary">
-              <b>{visited.size}</b> 个国家和地区<i />
-              <b>{data.places.length}</b> 个地点<i />
-              <b>{continentsVisited}</b> 个大洲
+              去过 <b>{visited.size}</b> 个国家，<b>{data.places.length}</b> 个地方，<b>{continentsVisited}</b> 个大洲
             </p>
           </header>
 
@@ -281,7 +279,7 @@ export default function App() {
               }}
             >
               <Icon name="search" size={17} />
-              <span>搜索城市，添加足迹</span>
+              <span>去过哪里？搜一搜</span>
             </button>
           )}
         </>
@@ -290,7 +288,7 @@ export default function App() {
       {tab === 'journal' && <JournalScreen places={data.places} countryName={countryName} onOpen={openPlace} />}
 
       {tab === 'stats' && (
-        <StatsScreen
+        <PassportScreen
           data={data}
           countries={countries}
           visited={visited}
@@ -310,11 +308,16 @@ export default function App() {
       {toast && <div className="toast">{toast}</div>}
       {loadError && <div className="toast error">{loadError}</div>}
 
-      <nav className="tabbar">
+      <nav className="capsule" aria-label="主菜单">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => switchTab(t.id)}>
-            <Icon name={t.icon} size={22} />
-            <span>{t.label}</span>
+          <button
+            key={t.id}
+            className={tab === t.id ? 'on' : ''}
+            onClick={() => switchTab(t.id)}
+            aria-label={t.label}
+            aria-current={tab === t.id ? 'page' : undefined}
+          >
+            <Icon name={t.icon} size={21} />
           </button>
         ))}
       </nav>

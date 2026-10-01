@@ -21,6 +21,7 @@
     "@capacitor/share": "^8.0.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
+    "lxgw-wenkai-lite-webfont": "^1.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-globe.gl": "^2.38.0",

@@ -8,8 +8,18 @@ const PATHS = {
   ),
   journal: (
     <>
-      <path d="M2.5 4h6a3.5 3.5 0 0 1 3.5 3.5V20a2.5 2.5 0 0 0-2.5-2.5h-7z" />
-      <path d="M21.5 4h-6A3.5 3.5 0 0 0 12 7.5V20a2.5 2.5 0 0 1 2.5-2.5h7z" />
+      <path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z" />
+      <path d="M9 3v18" />
+      <path d="M12.5 8H16" />
+      <path d="M12.5 11.5H16" />
+    </>
+  ),
+  passport: (
+    <>
+      <rect x="5" y="2.5" width="14" height="19" rx="2" />
+      <circle cx="12" cy="10.5" r="3.5" />
+      <path d="M8.5 10.5h7" />
+      <path d="M9.5 17.5h5" />
     </>
   ),
   stats: (

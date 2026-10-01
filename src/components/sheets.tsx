@@ -4,6 +4,7 @@ import { continentZh, countryNameZh, searchPlaces, type SearchResult } from '../
 import type { CountryFeature, Place } from '../types'
 import Icon from './Icon'
 import Sheet from './Sheet'
+import Stamp from './Stamp'
 
 export interface PlaceDraft {
   name: string
@@ -51,15 +52,15 @@ function PlaceForm({
       <div className="group">
         <label className="field">
           <span>名称</span>
-          <input value={draft.name} onChange={set('name')} placeholder="例如 京都" required />
+          <input value={draft.name} onChange={set('name')} placeholder="比如 京都" required />
         </label>
         <label className="field">
           <span>日期</span>
           <input type="date" value={draft.date} onChange={set('date')} />
         </label>
-        <label className="field top">
-          <span>备注</span>
-          <textarea value={draft.note} onChange={set('note')} rows={3} placeholder="写点什么（可选）" />
+        <label className="field multiline">
+          <span>随笔</span>
+          <textarea value={draft.note} onChange={set('note')} rows={3} placeholder="那天发生了什么……" />
         </label>
       </div>
       <div className="actions">
@@ -102,7 +103,7 @@ export function SearchSheet({ onPick, onClose }: { onPick: (r: SearchResult) => 
 
   return (
     <Sheet modal tall onClose={onClose}>
-      <SheetHeader title="添加地点" />
+      <SheetHeader title="记一个地方" />
       <form className="search" onSubmit={submit}>
         <Icon name="search" size={17} />
         <input
@@ -193,29 +194,53 @@ export function CountrySheet({
   onOpenPlace: (p: Place) => void
   onClose: () => void
 }) {
+  const [justStamped, setJustStamped] = useState(false)
   const lockedByPlaces = isVisited && !markedDirectly
+  const year = places
+    .map((p) => p.date?.slice(0, 4))
+    .filter(Boolean)
+    .sort()[0]
+
   return (
     <Sheet onClose={onClose}>
-      <SheetHeader
-        title={countryNameZh(country)}
-        tag={isVisited ? '去过' : undefined}
-        sub={`${continentZh(country.properties.continent)} · ${country.properties.name}`}
-      />
+      <div className="country-head">
+        <SheetHeader
+          title={countryNameZh(country)}
+          sub={`${continentZh(country.properties.continent)} · ${country.properties.name}`}
+        />
+        {isVisited && (
+          <Stamp
+            key={justStamped ? 'fresh' : 'still'}
+            code={country.properties.code}
+            name={countryNameZh(country)}
+            english={country.properties.name}
+            year={year}
+            size={92}
+            fresh={justStamped}
+          />
+        )}
+      </div>
 
       <div className="actions">
         {!lockedByPlaces && (
-          <button className={`btn ${isVisited ? 'secondary' : 'primary'}`} onClick={onToggle}>
-            {isVisited ? '取消标记' : '标记为去过'}
+          <button
+            className={`btn ${isVisited ? 'secondary' : 'primary'}`}
+            onClick={() => {
+              setJustStamped(!isVisited)
+              onToggle()
+            }}
+          >
+            {isVisited ? '撤销印章' : '盖章 · 我去过'}
           </button>
         )}
         <button className="btn secondary" onClick={onAddHere}>
-          添加地点
+          记一个地方
         </button>
       </div>
 
       {places.length > 0 && (
         <>
-          <p className="group-label">{places.length} 个地点</p>
+          <p className="group-label">在这里写下的 {places.length} 篇</p>
           <ul className="list group">
             {places.map((p) => (
               <li key={p.id}>
